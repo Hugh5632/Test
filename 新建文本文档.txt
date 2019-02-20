@@ -1,0 +1,123 @@
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace newsManage
+{
+    public partial class UserRegister : System.Web.UI.Page
+    {
+        private string connString = null;
+        protected void Page_Load(object sender, EventArgs e)
+        {
+
+            ConnectionStringSettings connectionStringSettings =
+                ConfigurationManager.ConnectionStrings["ConnectionString"];
+            if (connectionStringSettings == null ||
+                string.IsNullOrEmpty(connectionStringSettings.ConnectionString))
+                throw new ApplicationException("未找到数据库连接字符串。");
+            this.connString = connectionStringSettings.ConnectionString;
+            if (!IsPostBack)
+            {
+                lbMessage.Visible = true;
+            }
+            else
+            {
+                lbMessage.Visible = false;
+            }
+        }
+
+        protected void CustomValidator1_ServerValidate(object source, ServerValidateEventArgs args)
+        {
+            try
+            {
+                if (username.Text == "")
+                {
+                    Label1.Text = "*用户名不能为空";
+                    args.IsValid = false;
+                }
+
+                else
+                {
+                    string Username = Request.Params["username"];
+                    string sql = "SELECT * FROM Users WHERE Username = @Username";
+                    using (SqlConnection conn = new SqlConnection(connString))
+                    {
+                        using (SqlCommand cmd = new SqlCommand(sql, conn))
+                        {
+                            conn.Open();
+                            cmd.Parameters.AddWithValue("@Username", Username);
+                            using (SqlDataReader dr = cmd.ExecuteReader())
+                            {
+                                if (dr.Read())
+                                {
+                                    Label1.Text = "*用户名已存在";
+                                    args.IsValid = false;
+                                }
+                                else
+                                    args.IsValid = true;
+                                   dr.Close();
+                            }
+                            conn.Close();
+                        }
+                    }
+
+                }
+
+            }
+            catch (Exception e)
+            {
+                args.IsValid = false;
+            }
+        }
+
+        protected void btnOk_Click(object sender, EventArgs e)
+        {
+            if (IsValid)
+            {
+                string a = this.radSex.Checked == true ? "m" : "f";
+                string sql = "INSERT INTO Users (Username,RealName,Password,Email,ContactNum,Gender)" +
+                 "VALUES(@username, @realname, @password,@email,@contactnum,@gender)";
+                SqlConnection conn = new SqlConnection(connString);
+                    SqlCommand cmd = new SqlCommand(sql, conn);
+                        cmd.Parameters.AddWithValue("@Username", username.Text);
+                        cmd.Parameters.AddWithValue("@Realname", realname.Text);
+                        cmd.Parameters.AddWithValue("@password", password.Text);
+                        cmd.Parameters.AddWithValue("@Email", email.Text);
+                        cmd.Parameters.AddWithValue("@ContactNum", contactnum.Text);
+                        cmd.Parameters.AddWithValue("@Gender", a);
+
+                        try
+                        {
+                            conn.Open();
+                            if (cmd.ExecuteNonQuery() == 1)
+                            { 
+                                lbMessage.Text = "添加信息成功";
+                                lbMessage.Style.Add("color", "green");
+
+                                }
+                                else
+                                {
+                                lbMessage.Text = "添加失败。";
+                                lbMessage.Style.Add("color", "red");
+                                }
+
+                            }
+                          catch (Exception ex)
+                           {
+                            lbMessage.Text = "添加失败。" + ex.Message;
+                            lbMessage.Style.Add("color", "red");
+                         }
+
+                           finally
+                           {
+                            conn.Close();
+                           }
+            }
+        }
+    }
+}
